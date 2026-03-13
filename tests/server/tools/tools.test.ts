@@ -11,6 +11,7 @@ function mockCtx(overrides: Partial<ToolContext> = {}): ToolContext {
     agentId: 'a1',
     agentName: 'Rex',
     debitKibble: vi.fn(() => true),
+    creditKibble: vi.fn(),
     getKibbleBalance: vi.fn(() => 100),
     joinRoom: vi.fn(),
     leaveRoom: vi.fn(),
@@ -113,6 +114,7 @@ describe('transfer-kibble tool', () => {
     const result = await transferKibbleTool.execute({ to: 'Fido', amount: 10 }, ctx);
     expect(result.success).toBe(true);
     expect(ctx.debitKibble).toHaveBeenCalledWith(10, 'transfer to Fido');
+    expect(ctx.creditKibble).toHaveBeenCalledWith('target-id', 10, 'transfer from Rex');
   });
 
   it('fails on insufficient funds', async () => {

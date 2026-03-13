@@ -2,6 +2,7 @@ export interface ToolContext {
   agentId: string;
   agentName: string;
   debitKibble: (amount: number, reason: string) => boolean;
+  creditKibble: (agentId: string, amount: number, reason: string) => void;
   getKibbleBalance: () => number;
   joinRoom: (roomName: string) => void;
   leaveRoom: (roomName: string) => void;

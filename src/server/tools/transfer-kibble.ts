@@ -18,8 +18,7 @@ export const transferKibbleTool: ToolDefinition = {
     if (!ok) {
       return { success: false, output: `Insufficient kibble. Have ${ctx.getKibbleBalance()}, need ${amount}.` };
     }
-    // We debited from sender; now credit receiver through the context
-    // The office will handle the credit side
+    ctx.creditKibble(targetId, amount, `transfer from ${ctx.agentName}`);
     return { success: true, output: `Transferred ${amount} kibble to ${toName}. Remaining: ${ctx.getKibbleBalance()}` };
   },
 };

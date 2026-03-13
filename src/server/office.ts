@@ -131,6 +131,7 @@ export class Office {
       agentId,
       agentName: agent.name,
       debitKibble: (amount, reason) => this.kibble.debit(agentId, amount, reason),
+      creditKibble: (targetId, amount, reason) => this.kibble.credit(targetId, amount, reason),
       getKibbleBalance: () => this.kibble.balance(agentId),
       joinRoom: (roomName) => {
         const room = this.rooms.getOrCreate(roomName);
