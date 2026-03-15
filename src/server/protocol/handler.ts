@@ -66,6 +66,7 @@ export class ProtocolHandler {
       kibble: this.office.getKibbleBalance(agent.id),
       availableTools: tools,
       office: this.office.getStateOverview(),
+      serverManagedSpawning: this.office.hasSpawner,
     });
   }
 

@@ -11,7 +11,7 @@ describe('WebSocket integration', () => {
 
   beforeEach(async () => {
     const tmpLogsDir = mkdtempSync(join(tmpdir(), 'zooffice-test-'));
-    server = new ZoofficeServer(tmpLogsDir);
+    server = new ZoofficeServer({ logsDir: tmpLogsDir });
     await server.start({ port: PORT });
   });
 

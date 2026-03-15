@@ -14,7 +14,7 @@ program
   .option('-h, --host <string>', 'Host to bind', '0.0.0.0')
   .option('--logs-dir <path>', 'Directory for log files', 'logs')
   .action(async (opts) => {
-    const server = new ZoofficeServer(opts.logsDir);
+    const server = new ZoofficeServer({ logsDir: opts.logsDir });
     const port = parseInt(opts.port, 10);
     await server.start({ port, host: opts.host });
     console.log(`Zooffice server running on ws://${opts.host}:${port}`);

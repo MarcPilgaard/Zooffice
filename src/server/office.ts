@@ -13,12 +13,22 @@ import { hireTool } from './tools/hire.js';
 import { transferKibbleTool } from './tools/transfer-kibble.js';
 import type { ServerMessage, BroadcastMessage, OfficeOverview, StateSnapshot } from '../shared/protocol.js';
 import type { Logger } from './logger.js';
+import type { AgentSpawner } from './spawner.js';
 
 const INITIAL_KIBBLE = 100;
 const DEFAULT_OFFICE_NAME = 'Zooffice HQ';
 
 export type SendFn = (msg: ServerMessage) => void;
 export type BroadcastFn = (msg: BroadcastMessage) => void;
+
+export interface OfficeOptions {
+  broadcast?: BroadcastFn;
+  officeName?: string;
+  logger?: Logger;
+  spawner?: AgentSpawner;
+  /** Server URL passed to spawner so hired agents know where to connect */
+  serverUrl?: string;
+}
 
 export class Office {
   readonly name: string;
@@ -29,15 +39,23 @@ export class Office {
   readonly kibble = new KibbleLedger();
   readonly tools = new ToolRegistry();
   private logger?: Logger;
+  private spawner?: AgentSpawner;
+  private serverUrl?: string;
 
   private connectionToAgent = new Map<string, string>();
   private agentSenders = new Map<string, SendFn>();
   private broadcastFn?: BroadcastFn;
 
-  constructor(broadcast?: BroadcastFn, officeName?: string, logger?: Logger) {
-    this.name = officeName ?? DEFAULT_OFFICE_NAME;
-    this.broadcastFn = broadcast;
-    this.logger = logger;
+  get hasSpawner(): boolean {
+    return this.spawner != null;
+  }
+
+  constructor(opts: OfficeOptions = {}) {
+    this.name = opts.officeName ?? DEFAULT_OFFICE_NAME;
+    this.broadcastFn = opts.broadcast;
+    this.logger = opts.logger;
+    this.spawner = opts.spawner;
+    this.serverUrl = opts.serverUrl;
     this.tools.register(talkTool);
     this.tools.register(roomEnterTool);
     this.tools.register(roomLeaveTool);
@@ -171,6 +189,10 @@ export class Office {
           event: 'agent_spawned',
           data: { id: spawned.id, name: spawned.name, title: config.title, hiredBy: agent.name, room: config.room },
         });
+        // If server manages spawning, launch the client container/process
+        if (this.spawner && this.serverUrl) {
+          this.spawner.spawn(config, this.serverUrl);
+        }
         return spawned.id;
       },
       resolveAgentName: (name) => this.agents.getByName(name)?.id,

@@ -1,15 +1,23 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
 import { Office } from './office.js';
+import type { OfficeOptions } from './office.js';
 import { ProtocolHandler } from './protocol/handler.js';
 import { Logger } from './logger.js';
 import { serializeMessage } from '../shared/protocol.js';
 import type { ServerMessage, BroadcastMessage } from '../shared/protocol.js';
+import type { AgentSpawner } from './spawner.js';
 
 export interface ServerOptions {
   port: number;
   host?: string;
   logsDir?: string;
+}
+
+export interface ZoofficeServerOptions {
+  logsDir?: string;
+  spawner?: AgentSpawner;
+  serverUrl?: string;
 }
 
 export class ZoofficeServer {
@@ -19,9 +27,14 @@ export class ZoofficeServer {
   private renderers = new Set<WebSocket>();
   private logger: Logger;
 
-  constructor(logsDir?: string) {
-    this.logger = new Logger(logsDir);
-    this.office = new Office((msg) => this.broadcastToRenderers(msg), undefined, this.logger);
+  constructor(opts: ZoofficeServerOptions = {}) {
+    this.logger = new Logger(opts.logsDir);
+    this.office = new Office({
+      broadcast: (msg) => this.broadcastToRenderers(msg),
+      logger: this.logger,
+      spawner: opts.spawner,
+      serverUrl: opts.serverUrl,
+    });
     this.handler = new ProtocolHandler(this.office);
   }
 

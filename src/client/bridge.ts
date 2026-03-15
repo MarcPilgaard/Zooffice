@@ -24,6 +24,7 @@ export class Bridge {
   private inbox: string[] = [];
   private busy = false;
   private knownTools = new Set<string>();
+  private serverManagedSpawning = false;
 
   constructor(options: BridgeOptions) {
     this.options = options;
@@ -94,6 +95,7 @@ export class Bridge {
         const reg = msg as RegisteredMessage;
         this.agentId = reg.agentId;
         this.knownTools = new Set(reg.availableTools.map(t => t.name));
+        this.serverManagedSpawning = reg.serverManagedSpawning ?? false;
         // Rebuild system prompt with actual tool definitions from server
         this.wrapper.updateSystemPrompt(this.buildSystemPrompt(reg.availableTools));
         const toolList = reg.availableTools
@@ -126,10 +128,13 @@ export class Bridge {
         this.inbox.push(line);
 
         // If this was a successful hire, spawn a client for the new agent
+        // (skip if the server manages spawning, e.g. via Docker)
         if (tr.success && this.pendingHires.has(tr.requestId)) {
           const hire = this.pendingHires.get(tr.requestId)!;
           this.pendingHires.delete(tr.requestId);
-          this.spawnChildAgent(hire);
+          if (!this.serverManagedSpawning) {
+            this.spawnChildAgent(hire);
+          }
         }
 
         // Wait until all pending results are back before calling Claude

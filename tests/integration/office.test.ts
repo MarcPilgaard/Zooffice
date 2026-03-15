@@ -8,7 +8,7 @@ describe('Office integration', () => {
 
   beforeEach(() => {
     broadcasts = [];
-    office = new Office((msg) => broadcasts.push(msg));
+    office = new Office({ broadcast: (msg) => broadcasts.push(msg) });
   });
 
   it('registers an agent with initial kibble', () => {
@@ -102,7 +102,7 @@ describe('Office integration', () => {
   });
 
   it('supports custom office name', () => {
-    const custom = new Office(() => {}, 'Animal Corp');
+    const custom = new Office({ broadcast: () => {}, officeName: 'Animal Corp' });
     expect(custom.name).toBe('Animal Corp');
     expect(custom.getStateOverview().officeName).toBe('Animal Corp');
   });

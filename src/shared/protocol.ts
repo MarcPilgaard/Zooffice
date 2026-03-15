@@ -56,6 +56,8 @@ export interface RegisteredMessage {
   kibble: number;
   availableTools: ToolInfo[];
   office: OfficeOverview;
+  /** When true, the server handles spawning hired agents (e.g. via Docker). Clients should not spawn child processes. */
+  serverManagedSpawning?: boolean;
 }
 
 export interface IncomingMessage {

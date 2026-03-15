@@ -20,11 +20,28 @@ serverCmd
   .option('--host <string>', 'Host to bind', '0.0.0.0')
   .option('--render', 'Also start the tmux renderer', false)
   .option('--logs-dir <path>', 'Directory for log files', 'logs')
+  .option('--docker', 'Spawn hired agents as Docker containers', false)
+  .option('--docker-image <name>', 'Docker image for agent containers', 'ghcr.io/marcpilgaard/zooffice-client:latest')
+  .option('--docker-network <name>', 'Docker network for agent containers', 'host')
+  .option('--docker-env <KEY=VAL...>', 'Extra env vars for agent containers (repeatable)', (val: string, acc: string[]) => { acc.push(val); return acc; }, [] as string[])
   .action(async (opts) => {
-    const server = new ZoofficeServer(opts.logsDir);
     const port = parseInt(opts.port, 10);
+
+    let spawner: import('./server/spawner.js').AgentSpawner | undefined;
+    if (opts.docker) {
+      const { DockerSpawner } = await import('./server/spawner.js');
+      const extraEnv: Record<string, string> = {};
+      for (const pair of opts.dockerEnv as string[]) {
+        const eq = pair.indexOf('=');
+        if (eq > 0) extraEnv[pair.slice(0, eq)] = pair.slice(eq + 1);
+      }
+      spawner = new DockerSpawner({ image: opts.dockerImage, network: opts.dockerNetwork, env: extraEnv });
+    }
+
+    const serverUrl = `ws://${opts.host}:${port}`;
+    const server = new ZoofficeServer({ logsDir: opts.logsDir, spawner, serverUrl });
     await server.start({ port, host: opts.host });
-    console.log(`Zooffice server running on ws://${opts.host}:${port}`);
+    console.log(`Zooffice server running on ${serverUrl}`);
     console.log(`Logging to ${server.getLogFilePath()}`);
 
     let tmux: import('./renderer/tmux-manager.js').TmuxManager | null = null;
