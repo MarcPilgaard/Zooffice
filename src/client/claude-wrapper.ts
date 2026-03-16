@@ -32,9 +32,9 @@ export function parseToolCalls(text: string): ToolCall[] {
   return calls;
 }
 
-/** Derive a deterministic UUID v4-shaped ID from an agent name */
+/** Derive a unique UUID v4-shaped session ID per agent run */
 function nameToSessionId(name: string): string {
-  const hash = createHash('sha256').update(`zooffice-agent-${name}`).digest('hex');
+  const hash = createHash('sha256').update(`zooffice-agent-${name}-${Date.now()}-${Math.random()}`).digest('hex');
   // Format as UUID: 8-4-4-4-12
   return [
     hash.slice(0, 8),
@@ -75,7 +75,7 @@ export class ClaudeWrapper {
         ? `<system>\n${this.systemPrompt}\n</system>\n\n${message}`
         : message;
 
-      console.log(`[claude] spawning (${this.firstCall ? 'new' : 'continue'} ${this.sessionId.slice(0, 8)}, stdin: ${stdinMessage.length} chars)`);
+      console.log(`${new Date().toISOString()} [claude] spawning (${this.firstCall ? 'new' : 'continue'} ${this.sessionId.slice(0, 8)}, stdin: ${stdinMessage.length} chars)`);
       const proc = spawn('claude', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env, CLAUDECODE: undefined, CLAUDE_CODE_ENTRYPOINT: undefined },
@@ -109,12 +109,12 @@ export class ClaudeWrapper {
         try {
           const json = JSON.parse(stdout);
           const text = (json.result ?? '').trim();
-          console.log(`[claude] responded (${text.length} chars)`);
+          console.log(`${new Date().toISOString()} [claude] responded (${text.length} chars)`);
           const toolCalls = parseToolCalls(text);
           resolve({ text, toolCalls });
         } catch {
           const text = stdout.trim();
-          console.log(`[claude] responded plain (${text.length} chars)`);
+          console.log(`${new Date().toISOString()} [claude] responded plain (${text.length} chars)`);
           const toolCalls = parseToolCalls(text);
           resolve({ text, toolCalls });
         }

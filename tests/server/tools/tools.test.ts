@@ -109,12 +109,13 @@ describe('hire tool', () => {
 });
 
 describe('transfer-kibble tool', () => {
-  it('transfers kibble', async () => {
+  it('transfers kibble and notifies recipient', async () => {
     const ctx = mockCtx();
     const result = await transferKibbleTool.execute({ to: 'Fido', amount: 10 }, ctx);
     expect(result.success).toBe(true);
     expect(ctx.debitKibble).toHaveBeenCalledWith(10, 'transfer to Fido');
     expect(ctx.creditKibble).toHaveBeenCalledWith('target-id', 10, 'transfer from Rex');
+    expect(ctx.sendToAgent).toHaveBeenCalledWith('target-id', 'You received 10 kibble from Rex.');
   });
 
   it('fails on insufficient funds', async () => {

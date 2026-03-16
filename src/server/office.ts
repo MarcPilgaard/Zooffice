@@ -81,6 +81,7 @@ export class Office {
     this.connectionToAgent.set(connectionId, agent.id);
     this.agentSenders.set(agent.id, send);
     this.logger?.log('agent', { event: 'register', id: agent.id, name: agent.name, title: config.title, role: config.role, goal: config.goal });
+    this.logger?.log('kibble', { event: 'credit', agent: agent.name, agentId: agent.id, amount: INITIAL_KIBBLE, reason: 'initial', balance: this.kibble.balance(agent.id) });
     this.broadcastFn?.({
       type: 'office_event',
       event: 'agent_spawned',
@@ -148,8 +149,18 @@ export class Office {
     const ctx: ToolContext = {
       agentId,
       agentName: agent.name,
-      debitKibble: (amount, reason) => this.kibble.debit(agentId, amount, reason),
-      creditKibble: (targetId, amount, reason) => this.kibble.credit(targetId, amount, reason),
+      debitKibble: (amount, reason) => {
+        const ok = this.kibble.debit(agentId, amount, reason);
+        if (ok) {
+          this.logger?.log('kibble', { event: 'debit', agent: agent.name, agentId, amount, reason, balance: this.kibble.balance(agentId) });
+        }
+        return ok;
+      },
+      creditKibble: (targetId, amount, reason) => {
+        this.kibble.credit(targetId, amount, reason);
+        const target = this.agents.get(targetId);
+        this.logger?.log('kibble', { event: 'credit', agent: target?.name ?? targetId, agentId: targetId, amount, reason, balance: this.kibble.balance(targetId) });
+      },
       getKibbleBalance: () => this.kibble.balance(agentId),
       joinRoom: (roomName) => {
         const room = this.rooms.getOrCreate(roomName);
@@ -169,9 +180,24 @@ export class Office {
         return room.post(agentId, agent.name, text);
       },
       sendToAgent: (targetId, text) => {
+        const target = this.agents.get(targetId);
+        if (!target) return false;
+        const sharedRoom = agent.getRooms().find(r => target.getRooms().includes(r));
+        if (!sharedRoom) return false;
         const sender = this.agentSenders.get(targetId);
         if (!sender) return false;
         sender({ type: 'message', from: agent.name, text });
+        // Broadcast DM to renderer
+        this.logger?.log('room', { event: 'message', room: sharedRoom, agent: agent.name, agentId, text, dm: true, dmTo: target.name });
+        this.broadcastFn?.({
+          type: 'room_event',
+          room: sharedRoom,
+          event: 'message',
+          agent: agent.name,
+          text,
+          dm: true,
+          dmTo: target.name,
+        });
         return true;
       },
       spawnAgent: (config) => {

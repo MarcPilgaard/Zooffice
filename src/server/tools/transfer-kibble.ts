@@ -19,6 +19,7 @@ export const transferKibbleTool: ToolDefinition = {
       return { success: false, output: `Insufficient kibble. Have ${ctx.getKibbleBalance()}, need ${amount}.` };
     }
     ctx.creditKibble(targetId, amount, `transfer from ${ctx.agentName}`);
+    ctx.sendToAgent(targetId, `You received ${amount} kibble from ${ctx.agentName}.`);
     return { success: true, output: `Transferred ${amount} kibble to ${toName}. Remaining: ${ctx.getKibbleBalance()}` };
   },
 };

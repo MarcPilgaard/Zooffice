@@ -13,6 +13,10 @@ export interface BridgeOptions {
   goal: string;
 }
 
+function ts(): string {
+  return new Date().toISOString();
+}
+
 export class Bridge {
   private ws: WebSocket | null = null;
   private wrapper: ClaudeWrapper;
@@ -63,7 +67,7 @@ export class Bridge {
   }
 
   private spawnChildAgent(config: { name: string; title: string; role: string; goal: string }): void {
-    console.log(`[spawn] Starting client for ${config.name} (${config.title})...`);
+    console.log(`${ts()} [spawn] Starting client for ${config.name} (${config.title})...`);
     const child = nodeSpawn('zooffice', [
       'client', 'connect',
       '-s', this.options.serverUrl,
@@ -78,7 +82,7 @@ export class Bridge {
     });
     child.unref();
     this.childProcesses.push(child);
-    console.log(`[spawn] ${config.name} launched (pid: ${child.pid})`);
+    console.log(`${ts()} [spawn] ${config.name} launched (pid: ${child.pid})`);
   }
 
   private send(msg: ClientMessage): void {
@@ -106,7 +110,7 @@ export class Bridge {
           `Agents: ${reg.office.agents.map(a => `${a.name} (${a.title})`).join(', ') || 'none'}\n` +
           `Rooms: ${reg.office.rooms.map(r => `${r.name} (${r.members.length} members)`).join(', ') || 'none'}\n\n` +
           `YOUR ONLY AVAILABLE TOOLS (do not invent others):\n${toolList}`;
-        console.log(`← ${summary}`);
+        console.log(`${ts()} ← ${summary}`);
         this.enqueue(summary);
         break;
       }
@@ -116,7 +120,7 @@ export class Bridge {
         if (im.from === this.options.name) break; // ignore own messages
         const prefix = im.room ? `[${im.room}] ${im.from}` : im.from;
         const line = `${prefix}: ${im.text}`;
-        console.log(`← ${line}`);
+        console.log(`${ts()} ← ${line}`);
         this.enqueue(line);
         break;
       }
@@ -124,7 +128,7 @@ export class Bridge {
       case 'tool_result': {
         const tr = msg as ToolResultMessage;
         const line = `[tool_result ${tr.requestId}] ${tr.success ? 'OK' : 'FAIL'}: ${tr.output} (kibble: ${tr.kibbleRemaining})`;
-        console.log(`← ${line}`);
+        console.log(`${ts()} ← ${line}`);
         this.pendingToolCalls.delete(tr.requestId);
         this.inbox.push(line);
 
@@ -146,7 +150,7 @@ export class Bridge {
       }
 
       case 'error':
-        console.error(`Server error: ${msg.message} (${msg.code})`);
+        console.error(`${ts()} Server error: ${msg.message} (${msg.code})`);
         break;
     }
   }
@@ -167,12 +171,12 @@ export class Bridge {
       this.inbox = [];
 
       const response = await this.wrapper.prompt(message);
-      console.log(`→ ${response.text}`);
+      console.log(`${ts()} → ${response.text}`);
 
       if (response.toolCalls.length > 0) {
         for (const tc of response.toolCalls) {
           if (!this.knownTools.has(tc.tool)) {
-            console.log(`[bridge] ignoring unknown tool: ${tc.tool}`);
+            console.log(`${ts()} [bridge] ignoring unknown tool: ${tc.tool}`);
             continue;
           }
           const requestId = uuidv4();
@@ -189,7 +193,7 @@ export class Bridge {
         }
       }
     } catch (err) {
-      console.error('Claude error:', (err as Error).message);
+      console.error(`${ts()} Claude error:`, (err as Error).message);
     } finally {
       this.busy = false;
       // If more messages arrived while we were busy, flush again
