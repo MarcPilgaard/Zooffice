@@ -1,8 +1,10 @@
 import { spawn } from 'node:child_process';
-import { v4 as uuidv4 } from 'uuid';
+import { createHash } from 'node:crypto';
 
 export interface ClaudeWrapperOptions {
   systemPrompt?: string;
+  /** Unique agent name — used to derive a stable session ID */
+  agentName?: string;
 }
 
 export interface ClaudeResponse {
@@ -30,6 +32,19 @@ export function parseToolCalls(text: string): ToolCall[] {
   return calls;
 }
 
+/** Derive a deterministic UUID v4-shaped ID from an agent name */
+function nameToSessionId(name: string): string {
+  const hash = createHash('sha256').update(`zooffice-agent-${name}`).digest('hex');
+  // Format as UUID: 8-4-4-4-12
+  return [
+    hash.slice(0, 8),
+    hash.slice(8, 12),
+    '4' + hash.slice(13, 16),  // version 4
+    '8' + hash.slice(17, 20),  // variant
+    hash.slice(20, 32),
+  ].join('-');
+}
+
 export class ClaudeWrapper {
   private systemPrompt: string;
   private sessionId: string;
@@ -37,7 +52,7 @@ export class ClaudeWrapper {
 
   constructor(options: ClaudeWrapperOptions = {}) {
     this.systemPrompt = options.systemPrompt ?? '';
-    this.sessionId = uuidv4();
+    this.sessionId = nameToSessionId(options.agentName ?? 'default');
   }
 
   updateSystemPrompt(prompt: string): void {
@@ -46,31 +61,37 @@ export class ClaudeWrapper {
 
   async prompt(message: string): Promise<ClaudeResponse> {
     return new Promise((resolve, reject) => {
-      console.log('[claude] spawning...');
-      const args = ['-p', '--output-format', 'text', '--dangerously-skip-permissions'];
+      const args = ['-p', '--output-format', 'json', '--dangerously-skip-permissions'];
 
       if (this.firstCall) {
+        // First call: new session with system prompt via stdin
         args.push('--session-id', this.sessionId);
-        if (this.systemPrompt) {
-          args.push('--system-prompt', this.systemPrompt);
-        }
       } else {
-        args.push('--resume', this.sessionId);
+        // Subsequent calls: continue the agent's session
+        args.push('--continue', this.sessionId);
       }
 
+      const stdinMessage = this.firstCall && this.systemPrompt
+        ? `<system>\n${this.systemPrompt}\n</system>\n\n${message}`
+        : message;
+
+      console.log(`[claude] spawning (${this.firstCall ? 'new' : 'continue'} ${this.sessionId.slice(0, 8)}, stdin: ${stdinMessage.length} chars)`);
       const proc = spawn('claude', args, {
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: { ...process.env, CLAUDECODE: undefined },
+        env: { ...process.env, CLAUDECODE: undefined, CLAUDE_CODE_ENTRYPOINT: undefined },
       });
 
       let stdout = '';
       let stderr = '';
 
       proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-      proc.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+      proc.stderr.on('data', (chunk: Buffer) => {
+        const text = chunk.toString();
+        stderr += text;
+        console.error(`[claude:stderr] ${text.trimEnd()}`);
+      });
 
-      proc.stdin.write(message);
-      proc.stdin.end();
+      proc.stdin.end(stdinMessage);
 
       const timeout = setTimeout(() => {
         proc.kill();
@@ -84,10 +105,19 @@ export class ClaudeWrapper {
           return;
         }
         this.firstCall = false;
-        const text = stdout.trim();
-        console.log(`[claude] responded (${text.length} chars)`);
-        const toolCalls = parseToolCalls(text);
-        resolve({ text, toolCalls });
+
+        try {
+          const json = JSON.parse(stdout);
+          const text = (json.result ?? '').trim();
+          console.log(`[claude] responded (${text.length} chars)`);
+          const toolCalls = parseToolCalls(text);
+          resolve({ text, toolCalls });
+        } catch {
+          const text = stdout.trim();
+          console.log(`[claude] responded plain (${text.length} chars)`);
+          const toolCalls = parseToolCalls(text);
+          resolve({ text, toolCalls });
+        }
       });
 
       proc.on('error', (err) => {

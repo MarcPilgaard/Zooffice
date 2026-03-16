@@ -81,7 +81,6 @@ export class DockerSpawner implements AgentSpawner {
 
     console.log(`[docker-spawner] Spawning container: ${containerName}`);
     const child = spawn('docker', args, {
-      stdio: 'ignore',
       detached: true,
     });
     child.unref();

@@ -30,6 +30,7 @@ export class Bridge {
     this.options = options;
     this.wrapper = new ClaudeWrapper({
       systemPrompt: this.buildSystemPrompt(),
+      agentName: options.name,
     });
   }
 

@@ -27,6 +27,8 @@ serverCmd
   .option('--github-app-id <id>', 'GitHub App ID for agent auth')
   .option('--github-app-private-key <path>', 'Path to GitHub App private key (.pem)')
   .option('--github-app-installation-id <id>', 'GitHub App installation ID')
+  .option('--delay <ms>', 'Delay in ms before processing each message (for observation)', '0')
+
   .action(async (opts) => {
     const port = parseInt(opts.port, 10);
 
@@ -54,7 +56,8 @@ serverCmd
     }
 
     const serverUrl = `ws://${opts.host}:${port}`;
-    const server = new ZoofficeServer({ logsDir: opts.logsDir, spawner, serverUrl });
+    const delayMs = parseInt(opts.delay, 10);
+    const server = new ZoofficeServer({ logsDir: opts.logsDir, spawner, serverUrl, delayMs });
     await server.start({ port, host: opts.host });
     console.log(`Zooffice server running on ${serverUrl}`);
     console.log(`Logging to ${server.getLogFilePath()}`);

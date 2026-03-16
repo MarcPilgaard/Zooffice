@@ -18,6 +18,8 @@ export interface ZoofficeServerOptions {
   logsDir?: string;
   spawner?: AgentSpawner;
   serverUrl?: string;
+  /** Delay in ms before processing each incoming message (for observation/debugging) */
+  delayMs?: number;
 }
 
 export class ZoofficeServer {
@@ -26,8 +28,10 @@ export class ZoofficeServer {
   private handler: ProtocolHandler;
   private renderers = new Set<WebSocket>();
   private logger: Logger;
+  private delayMs: number;
 
   constructor(opts: ZoofficeServerOptions = {}) {
+    this.delayMs = opts.delayMs ?? 0;
     this.logger = new Logger(opts.logsDir);
     this.office = new Office({
       broadcast: (msg) => this.broadcastToRenderers(msg),
@@ -73,7 +77,10 @@ export class ZoofficeServer {
           }
         };
 
-        ws.on('message', (data) => {
+        ws.on('message', async (data) => {
+          if (this.delayMs > 0) {
+            await new Promise(r => setTimeout(r, this.delayMs));
+          }
           this.handler.handleRaw(data.toString(), send, connectionId);
         });
 
