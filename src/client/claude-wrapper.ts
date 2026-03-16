@@ -47,7 +47,7 @@ export class ClaudeWrapper {
   async prompt(message: string): Promise<ClaudeResponse> {
     return new Promise((resolve, reject) => {
       console.log('[claude] spawning...');
-      const args = ['-p', '--output-format', 'text'];
+      const args = ['-p', '--output-format', 'text', '--dangerously-skip-permissions'];
 
       if (this.firstCall) {
         args.push('--session-id', this.sessionId);

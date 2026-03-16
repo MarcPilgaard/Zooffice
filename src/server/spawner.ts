@@ -19,7 +19,8 @@ export interface DockerSpawnerOptions {
 
 /** Env vars forwarded from the server process into each agent container. */
 const FORWARDED_ENV_VARS = [
-  'ANTHROPIC_API_KEY',   // claude code auth
+  'ANTHROPIC_API_KEY',   // claude code auth (legacy)
+  'CLAUDE_API_KEY',      // claude code auth (preferred)
   'GH_TOKEN',           // github CLI auth
   'GITHUB_TOKEN',       // github CLI auth (alt)
 ];
@@ -53,7 +54,7 @@ export class DockerSpawner implements AgentSpawner {
     const containerName = `zooffice-${config.name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}`;
 
     // Generate a fresh GitHub App installation token if configured
-    const spawnEnv = { ...this.env };
+    const spawnEnv: Record<string, string> = { ...this.env, ZOOFFICE_AGENT_NAME: config.name };
     if (this.githubApp) {
       try {
         spawnEnv.GH_TOKEN = await this.githubApp.createInstallationToken();
